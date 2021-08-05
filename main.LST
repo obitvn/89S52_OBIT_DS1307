@@ -1,0 +1,218 @@
+C51 COMPILER V9.57.0.0   MAIN                                                              01/22/2019 14:26:16 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: F:\Cai_Phan_Mem\Keil C 8051\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND TABS
+                    -(2)
+
+line level    source
+
+   1          #include "main.h"
+   2          #include "Soft_I2c.h"
+   3          //#include "lcd.c"
+   4          #include "DS1307.h"
+   5          #include "port.h"
+   6          
+   7          sbit LCD_RS = P1^6;
+   8          sbit LCD_RW = P1^5;
+   9          sbit LCD_E  = P1^4;
+  10          
+  11          sbit LCD_D4 = P1^3; 
+  12          sbit LCD_D5 = P1^2;
+  13          sbit LCD_D6 = P1^1;
+  14          sbit LCD_D7 = P1^0;
+  15          
+  16          #define LCD P2
+  17          #define LINE_1 0x80
+  18          #define LINE_2 0xC0
+  19          #define CLEAR_LCD 0x01
+  20          
+  21          
+  22          
+  23          //Ham delay t ms
+  24          void delay_ms(unsigned int t)
+  25          {
+  26   1        int i,j;
+  27   1        for(i=0;i<t;i++)
+  28   1        {
+  29   2          for(j=0;j<122;j++);
+  30   2        } 
+  31   1      }
+  32          
+  33          void delay_us(unsigned int t)
+  34          {
+  35   1        int i,j;
+  36   1        for(i=0;i<t;i++)
+  37   1        {
+  38   2          for(j=0;j<122;j++);
+  39   2        } 
+  40   1      }
+  41          
+  42          
+  43          // Ham Khoi Tao LCD
+  44           void lcd1602_enable(void)
+  45          {
+  46   1        LCD_E=1;  
+  47   1        delay_us(3);    
+  48   1        LCD_E=0;
+  49   1        delay_us(5);  
+  50   1      }
+  51          // --------------------------------------------------
+  52          // Ham Gui 4 Bit Du Lieu Ra LCD
+  53           void lcd1602_send_4bit_data ( unsigned char cX )
+  54          {
+C51 COMPILER V9.57.0.0   MAIN                                                              01/22/2019 14:26:16 PAGE 2   
+
+  55   1       LCD_D4 = cX & 0x01; 
+  56   1       LCD_D5 = (cX>>1)&1;
+  57   1       LCD_D6 = (cX>>2)&1;
+  58   1       LCD_D7 = (cX>>3)&1;
+  59   1      }
+  60          
+  61          // --------------------------------------------------
+  62          // Ham Gui 1 Lenh Cho LCD
+  63           void lcd1602_send_command (unsigned char cX )
+  64          {
+  65   1        lcd1602_send_4bit_data  ( cX >>4 );     // send 4 bit high  
+  66   1        lcd1602_enable() ;
+  67   1        lcd1602_send_4bit_data ( cX  );         // send 4 bit low  
+  68   1        lcd1602_enable() ;
+  69   1      }
+  70          
+  71          // --------------------------------------------------
+  72          // Ham Khoi Tao LCD
+  73           void lcd1602_init ( void )
+  74          {
+  75   1        lcd1602_send_4bit_data ( 0x00 );
+  76   1        delay_ms(200);
+  77   1        
+  78   1        LCD_RS=0; 
+  79   1        LCD_RW=0;
+  80   1        LCD_E=0;                                  // che do gui lenh
+  81   1        
+  82   1        lcd1602_send_4bit_data ( 0x03 );          // ket noi 8 bit
+  83   1        lcd1602_enable() ;
+  84   1        lcd1602_enable () ;
+  85   1        lcd1602_enable () ;
+  86   1        lcd1602_send_4bit_data ( 0x02 );          // ket noi 4 bit
+  87   1        lcd1602_enable() ;
+  88   1        
+  89   1        lcd1602_send_command( 0x2C );             // giao thuc 4 bit, hien thi 2 hang, ki tu 5x8
+  90   1        lcd1602_send_command( 0x80);
+  91   1        lcd1602_send_command( 0x0C);              // cho phep hien thi man hinh
+  92   1        lcd1602_send_command( 0x06 );             // tang ID, khong dich khung hinh
+  93   1        lcd1602_send_command( CLEAR_LCD );        // xoa toan bo khung hinh
+  94   1      }
+  95          
+  96          // --------------------------------------------------
+  97          // Ham Thiet Lap Vi Tri Con Tro
+  98          void lcd1602_gotoxy(unsigned char x, unsigned char y)
+  99          {
+ 100   1        unsigned char address;
+ 101   1        if(!y)
+ 102   1        address = (LINE_1+x);
+ 103   1        else
+ 104   1        address = (LINE_2+x);
+ 105   1        delay_ms(3);
+ 106   1        lcd1602_send_command(address);
+ 107   1        delay_ms(1);
+ 108   1      }
+ 109          
+ 110          // --------------------------------------------------
+ 111          // Ham Xoa Man Hinh LCD
+ 112          void lcd1602_clear(void)
+ 113          {
+ 114   1        lcd1602_send_command( CLEAR_LCD );  
+ 115   1        //delay_us(300);
+ 116   1      }
+C51 COMPILER V9.57.0.0   MAIN                                                              01/22/2019 14:26:16 PAGE 3   
+
+ 117          
+ 118          // --------------------------------------------------
+ 119          // Ham Gui 1 Ky Tu Len LCD
+ 120           void lcd1602_putchar ( unsigned int cX )
+ 121          {
+ 122   1        LCD_RS=1; 
+ 123   1        lcd1602_send_command( cX );
+ 124   1        LCD_RS=0;
+ 125   1      }
+ 126          
+ 127          // --------------------------------------------------
+ 128          // Ham Gui 1 Chuoi Ky Tu Len LCD
+ 129          void lcd1602_puts(char *s)
+ 130          {
+ 131   1         while (*s)
+ 132   1         {
+ 133   2            lcd1602_putchar(*s);
+ 134   2            s++;
+ 135   2         }
+ 136   1      }
+ 137          // -------------------------------------------------
+ 138          
+ 139          
+ 140          
+ 141          unsigned char * code Days[] = {"SUN","MON","TUE","WED","THU","FRI","SAT"};
+ 142          
+ 143          void main()
+ 144          {
+ 145   1        unsigned char Hour, Minute, Second, Mode, Day, Date, Month, Year, old_second;
+ 146   1      
+ 147   1        Soft_I2c_Init();
+ 148   1        Ds1307_Init();
+ 149   1        lcd1602_init();
+ 150   1        //Ds1307_Read_Time(&Hour, &Minute, &Second, &Mode);
+ 151   1        Ds1307_Read_Date(&Day, &Date, &Month, &Year);
+ 152   1        if(Year==0)
+ 153   1        {
+ 154   2        Ds1307_Write_Time(2,26,0,24,1);
+ 155   2        Ds1307_Write_Date(3,22,1,19);
+ 156   2        }
+ 157   1        
+ 158   1        while(1)
+ 159   1        {
+ 160   2            Ds1307_Read_Time(&Hour, &Minute, &Second, &Mode);
+ 161   2            old_second = Second;
+ 162   2            lcd1602_gotoxy(0,0);
+ 163   2            lcd1602_putchar(Hour/10+0x30);
+ 164   2            //lcd1602_gotoxy(1,6);
+ 165   2            lcd1602_putchar(Hour%10+0x30);
+ 166   2            lcd1602_puts(":");
+ 167   2            lcd1602_putchar(Minute/10+0x30);
+ 168   2            lcd1602_putchar(Minute%10+0x30);
+ 169   2            lcd1602_puts(":");
+ 170   2            lcd1602_putchar(Second/10+0x30);
+ 171   2            lcd1602_putchar(Second%10+0x30);
+ 172   2      
+ 173   2            Ds1307_Read_Date(&Day, &Date, &Month, &Year);
+ 174   2            lcd1602_gotoxy(0,1);
+ 175   2            //lcd1602_putchar(Days[Day-1]);
+ 176   2            //lcd1602_puts(" ");
+ 177   2            lcd1602_putchar(Date/10+0x30);
+ 178   2            lcd1602_putchar(Date%10+0x30);
+C51 COMPILER V9.57.0.0   MAIN                                                              01/22/2019 14:26:16 PAGE 4   
+
+ 179   2            lcd1602_puts("/");
+ 180   2            lcd1602_putchar(Month/10+0x30);
+ 181   2            lcd1602_putchar(Month%10+0x30);
+ 182   2            lcd1602_puts("/20");
+ 183   2            lcd1602_putchar(Year/10+0x30);
+ 184   2            lcd1602_putchar(Year%10+0x30);
+ 185   2             delay_ms(1000);
+ 186   2      
+ 187   2        }
+ 188   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    576    ----
+   CONSTANT SIZE    =     57    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      13
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
